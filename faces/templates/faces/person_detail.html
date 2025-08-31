@@ -1,0 +1,309 @@
+{% extends 'faces/base.html' %}
+
+{% block title %}{{ person.name }} - Face Detection Security System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-person-circle"></i>
+        {{ person.name }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'person_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i>
+                Back to Persons
+            </a>
+            <a href="{% url 'register_face' %}" class="btn btn-success">
+                <i class="bi bi-camera-fill"></i>
+                Add More Images
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Person Information -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Person Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">Name:</dt>
+                    <dd class="col-sm-7">{{ person.name }}</dd>
+                    
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7">
+                        {% if person.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-5">Registered:</dt>
+                    <dd class="col-sm-7">{{ person.created_at|date:"M d, Y H:i" }}</dd>
+                    
+                    <dt class="col-sm-5">Last Updated:</dt>
+                    <dd class="col-sm-7">{{ person.updated_at|date:"M d, Y H:i" }}</dd>
+                    
+                    <dt class="col-sm-5">Face Images:</dt>
+                    <dd class="col-sm-7">{{ face_encodings.count }}</dd>
+                </dl>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-danger" 
+                            onclick="confirmDelete('{{ person.name }}', {{ person.id }})">
+                        <i class="bi bi-trash"></i>
+                        Delete Person
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Face Images -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-images"></i>
+                    Registered Face Images ({{ face_encodings.count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if face_encodings %}
+                <div class="row">
+                    {% for encoding in face_encodings %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card">
+                            <img src="{{ encoding.image.url }}" class="card-img-top" 
+                                 style="height: 200px; object-fit: cover;" alt="Face Image">
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        {{ encoding.created_at|date:"M d, Y" }}
+                                    </small>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                onclick="showImageModal('{{ encoding.image.url }}', 'Face Image {{ forloop.counter }}')">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                                onclick="confirmDeleteEncoding({{ encoding.id }}, 'Face Image {{ forloop.counter }}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted d-block">
+                                        Quality: {{ encoding.confidence_score|floatformat:2 }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-camera display-4 text-muted"></i>
+                    <h5 class="mt-3">No face images registered</h5>
+                    <p class="text-muted">Add face images to enable recognition for this person</p>
+                    <a href="{% url 'register_face' %}" class="btn btn-primary">
+                        <i class="bi bi-camera-fill"></i>
+                        Add Face Images
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Detection Logs -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    Recent Detection Logs
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if detection_logs %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Confidence</th>
+                                <th>Image</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in detection_logs %}
+                            <tr>
+                                <td>{{ log.detection_time|date:"M d, H:i:s" }}</td>
+                                <td>
+                                    <span class="status-indicator status-{{ log.detection_type }}"></span>
+                                    {{ log.get_detection_type_display }}
+                                </td>
+                                <td>
+                                    {% if log.confidence_score %}
+                                        {{ log.confidence_score|floatformat:2 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.image_snapshot %}
+                                    <img src="{{ log.image_snapshot.url }}" class="detection-thumbnail" alt="Detection">
+                                    {% else %}
+                                    <i class="bi bi-image text-muted"></i>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.notes|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'detection_logs' %}?search={{ person.name }}" class="btn btn-outline-primary btn-sm">
+                        View All Logs for {{ person.name }}
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-list display-4 text-muted"></i>
+                    <h5 class="mt-3">No detection logs yet</h5>
+                    <p class="text-muted">Detection logs for {{ person.name }} will appear here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Person Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning"></i>
+                    Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="personNameToDelete"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i>
+                    This action will permanently delete all face images and detection logs for this person.
+                    This cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i>
+                        Delete Person
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Encoding Modal -->
+<div class="modal fade" id="deleteEncodingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning"></i>
+                    Delete Face Image
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="encodingNameToDelete"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i>
+                    This will permanently delete this face image and its encoding data.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteEncodingForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i>
+                        Delete Image
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalTitle">Face Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" class="img-fluid" alt="Face Image">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(personName, personId) {
+    document.getElementById('personNameToDelete').textContent = personName;
+    document.getElementById('deleteForm').action = `/persons/${personId}/delete/`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+function confirmDeleteEncoding(encodingId, encodingName) {
+    document.getElementById('encodingNameToDelete').textContent = encodingName;
+    document.getElementById('deleteEncodingForm').action = `/encodings/${encodingId}/delete/`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteEncodingModal'));
+    modal.show();
+}
+
+function showImageModal(imageUrl, title) {
+    document.getElementById('modalImage').src = imageUrl;
+    document.getElementById('imageModalTitle').textContent = title;
+    
+    const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

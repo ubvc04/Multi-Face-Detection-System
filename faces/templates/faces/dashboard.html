@@ -1,0 +1,458 @@
+{% extends 'faces/base.html' %}
+
+{% block title %}Dashboard - Face Detection Security System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button id="startCameraBtn" class="btn btn-success me-2">
+                <i class="bi bi-camera-video"></i>
+                Start Camera
+            </button>
+            <button id="stopCameraBtn" class="btn btn-danger me-2" disabled>
+                <i class="bi bi-camera-video-off"></i>
+                Stop Camera
+            </button>
+            <a href="{% url 'register_face' %}" class="btn btn-primary">
+                <i class="bi bi-person-plus"></i>
+                Register New Face
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Live Camera Feed -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-camera"></i>
+                    Live Camera Feed
+                </h5>
+                <div>
+                    <span id="cameraStatus" class="badge bg-secondary">Stopped</span>
+                    <button id="reloadFacesBtn" class="btn btn-sm btn-outline-primary ms-2">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        Reload Faces
+                    </button>
+                </div>
+            </div>
+            <div class="card-body text-center">
+                <div id="cameraContainer" style="min-height: 400px; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <div id="cameraPlaceholder">
+                        <i class="bi bi-camera display-1 text-muted"></i>
+                        <p class="text-muted mt-3">Click "Start Camera" to begin live face detection</p>
+                    </div>
+                    <img id="cameraFeed" style="display: none; max-width: 100%; border-radius: 8px;" alt="Live Camera Feed">
+                </div>
+                <div id="detectionInfo" class="mt-3" style="display: none;">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <strong>Known Faces: </strong>
+                            <span id="knownFacesCount">{{ total_persons }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Threshold: </strong>
+                            <span id="thresholdValue">{{ recognition_threshold }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>FPS: </strong>
+                            <span id="fpsCounter">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Statistics Cards -->
+        <div class="row">
+            <div class="col-12 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <div class="text-uppercase small">Registered Persons</div>
+                                <div class="h4 font-weight-bold">{{ total_persons }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-people display-6"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-12 mb-3">
+                <div class="card stats-card-2">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <div class="text-uppercase small">Face Encodings</div>
+                                <div class="h4 font-weight-bold">{{ total_encodings }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-camera display-6"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-12 mb-3">
+                <div class="card stats-card-3">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <div class="text-uppercase small">Unknown Today</div>
+                                <div class="h4 font-weight-bold">{{ unknown_detections_today }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-exclamation-triangle display-6"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    System Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Camera Status:</strong>
+                    <span id="systemCameraStatus" class="badge bg-secondary">Ready</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Email Alerts:</strong>
+                    <span class="badge {% if email_alerts_enabled %}bg-success{% else %}bg-danger{% endif %}">
+                        {% if email_alerts_enabled %}Enabled{% else %}Disabled{% endif %}
+                    </span>
+                </div>
+                <div class="mb-3">
+                    <strong>Recognition Threshold:</strong>
+                    <span class="badge bg-info">{{ recognition_threshold }}</span>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'person_list' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-people"></i>
+                        Manage Persons
+                    </a>
+                    <a href="{% url 'system_settings' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-gear"></i>
+                        System Settings
+                    </a>
+                    <a href="{% url 'detection_logs' %}" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-list"></i>
+                        View Detection Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Detections -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    Recent Detections
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_detections %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Person</th>
+                                <th>Type</th>
+                                <th>Confidence</th>
+                                <th>Image</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_detections %}
+                            <tr>
+                                <td>
+                                    <small>{{ log.detection_time|date:"M d, H:i" }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ log.get_display_name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="status-indicator status-{{ log.detection_type }}"></span>
+                                    {{ log.get_detection_type_display }}
+                                </td>
+                                <td>
+                                    {% if log.confidence_score %}
+                                        {{ log.confidence_score|floatformat:2 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.image_snapshot %}
+                                    <img src="{{ log.image_snapshot.url }}" class="detection-thumbnail" alt="Detection" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                    {% else %}
+                                    <i class="bi bi-image text-muted"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ log.notes|truncatewords:8 }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'detection_logs' %}" class="btn btn-outline-primary btn-sm">
+                        View All Logs
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-list display-6 d-block mb-2"></i>
+                    <p>No detections logged yet</p>
+                    <small>Detection logs will appear here once the camera system starts detecting faces</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('startCameraBtn');
+    const stopBtn = document.getElementById('stopCameraBtn');
+    const reloadBtn = document.getElementById('reloadFacesBtn');
+    const cameraFeed = document.getElementById('cameraFeed');
+    const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+    const cameraStatus = document.getElementById('cameraStatus');
+    const systemCameraStatus = document.getElementById('systemCameraStatus');
+    const detectionInfo = document.getElementById('detectionInfo');
+    const knownFacesCount = document.getElementById('knownFacesCount');
+    const thresholdValue = document.getElementById('thresholdValue');
+    const fpsCounter = document.getElementById('fpsCounter');
+    
+    let isStreaming = false;
+    let frameCount = 0;
+    let lastFpsUpdate = Date.now();
+    
+    // Function to update camera status
+    function updateCameraStatus(status, isActive) {
+        cameraStatus.textContent = status;
+        systemCameraStatus.textContent = status;
+        
+        if (isActive) {
+            cameraStatus.className = 'badge bg-success';
+            systemCameraStatus.className = 'badge bg-success';
+        } else {
+            cameraStatus.className = 'badge bg-secondary';
+            systemCameraStatus.className = 'badge bg-secondary';
+        }
+    }
+    
+    // Function to show alerts
+    function showAlert(message, type = 'info') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.container-fluid').prepend(alertDiv);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    // Start camera
+    startBtn.addEventListener('click', function() {
+        startBtn.disabled = true;
+        updateCameraStatus('Starting...', false);
+        
+        fetch('{% url "camera_control" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({action: 'start', camera_index: 0})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                isStreaming = true;
+                cameraFeed.src = '{% url "camera_feed" %}?' + new Date().getTime();
+                cameraFeed.style.display = 'block';
+                cameraPlaceholder.style.display = 'none';
+                detectionInfo.style.display = 'block';
+                stopBtn.disabled = false;
+                updateCameraStatus('Active', true);
+                showAlert('Camera started successfully!', 'success');
+                
+                // Start FPS counter
+                startFpsCounter();
+            } else {
+                startBtn.disabled = false;
+                updateCameraStatus('Error', false);
+                showAlert('Failed to start camera: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            startBtn.disabled = false;
+            updateCameraStatus('Error', false);
+            showAlert('Network error: ' + error.message, 'danger');
+        });
+    });
+    
+    // Stop camera
+    stopBtn.addEventListener('click', function() {
+        stopBtn.disabled = true;
+        updateCameraStatus('Stopping...', false);
+        
+        fetch('{% url "camera_control" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({action: 'stop'})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                isStreaming = false;
+                cameraFeed.style.display = 'none';
+                cameraPlaceholder.style.display = 'block';
+                detectionInfo.style.display = 'none';
+                startBtn.disabled = false;
+                updateCameraStatus('Stopped', false);
+                showAlert('Camera stopped successfully!', 'info');
+            } else {
+                stopBtn.disabled = false;
+                showAlert('Failed to stop camera: ' + data.message, 'warning');
+            }
+        })
+        .catch(error => {
+            stopBtn.disabled = false;
+            showAlert('Network error: ' + error.message, 'danger');
+        });
+    });
+    
+    // Reload faces
+    reloadBtn.addEventListener('click', function() {
+        const originalText = reloadBtn.innerHTML;
+        reloadBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Reloading...';
+        reloadBtn.disabled = true;
+        
+        fetch('{% url "camera_control" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({action: 'reload_faces'})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                knownFacesCount.textContent = data.count;
+                showAlert(`Faces reloaded successfully! ${data.count} known persons loaded.`, 'success');
+            } else {
+                showAlert('Failed to reload faces: ' + data.message, 'warning');
+            }
+        })
+        .catch(error => {
+            showAlert('Network error: ' + error.message, 'danger');
+        })
+        .finally(() => {
+            reloadBtn.innerHTML = originalText;
+            reloadBtn.disabled = false;
+        });
+    });
+    
+    // FPS counter
+    function startFpsCounter() {
+        frameCount = 0;
+        lastFpsUpdate = Date.now();
+        
+        const fpsInterval = setInterval(() => {
+            if (!isStreaming) {
+                clearInterval(fpsInterval);
+                fpsCounter.textContent = '--';
+                return;
+            }
+            
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFpsUpdate >= 1000) { // Update every second
+                const fps = Math.round(frameCount / ((now - lastFpsUpdate) / 1000));
+                fpsCounter.textContent = fps + ' FPS';
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+        }, 100);
+    }
+    
+    // Handle camera feed load events
+    cameraFeed.addEventListener('load', function() {
+        frameCount++;
+    });
+    
+    cameraFeed.addEventListener('error', function() {
+        if (isStreaming) {
+            showAlert('Camera feed error. Attempting to reconnect...', 'warning');
+            // Try to reload the feed
+            setTimeout(() => {
+                if (isStreaming) {
+                    cameraFeed.src = '{% url "camera_feed" %}?' + new Date().getTime();
+                }
+            }, 2000);
+        }
+    });
+    
+    // Auto-start camera on page load (optional)
+    // Uncomment the next line if you want camera to start automatically
+    // startBtn.click();
+});
+
+// Add CSS animation for spinning icon
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

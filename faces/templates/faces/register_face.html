@@ -1,0 +1,280 @@
+{% extends 'faces/base.html' %}
+
+{% block title %}Register Face - Face Detection Security System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Register New Face</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'person_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            Back to Persons
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-plus"></i>
+                    Face Registration Form
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="registrationForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            <strong>Person Name</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="name" name="name" required 
+                               placeholder="Enter the person's full name">
+                        <div class="form-text">
+                            Enter a unique name for this person. The system will check for duplicates automatically.
+                        </div>
+                    </div>
+                    
+                    <!-- Registration Method Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <strong>Registration Method</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="registration_method" 
+                                           id="method_upload" value="upload" checked>
+                                    <label class="form-check-label" for="method_upload">
+                                        <i class="bi bi-upload"></i> Upload Images
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="registration_method" 
+                                           id="method_webcam" value="webcam">
+                                    <label class="form-check-label" for="method_webcam">
+                                        <i class="bi bi-camera-video"></i> Live Webcam Capture
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Section -->
+                    <div class="mb-3" id="upload_section">
+                        <label for="face_images" class="form-label">
+                            <strong>Face Images</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" class="form-control" id="face_images" name="face_images" 
+                               multiple accept="image/*">
+                        <div class="form-text">
+                            Select one or more clear face images. Multiple angles improve recognition accuracy.
+                            Supported formats: JPG, PNG, GIF
+                        </div>
+                    </div>
+                    
+                    <!-- Webcam Capture Section -->
+                    <div class="mb-3" id="webcam_section" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-camera-video"></i> Webcam Capture Instructions</h6>
+                            <ul class="mb-0">
+                                <li>Click "Register Face" to start webcam capture</li>
+                                <li>Position your face in the camera frame</li>
+                                <li>Press <strong>SPACE</strong> to capture when ready</li>
+                                <li>Press <strong>ESC</strong> to cancel capture</li>
+                                <li>Ensure good lighting and clear face visibility</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Preview Area -->
+                    <div id="imagePreview" class="mb-3" style="display: none;">
+                        <label class="form-label">
+                            <strong>Image Preview</strong>
+                        </label>
+                        <div class="row" id="previewContainer">
+                            <!-- Preview images will be added here by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="bi bi-check-circle"></i>
+                            Register Face
+                        </button>
+                        <a href="{% url 'person_list' %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Registration Tips
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-lightbulb"></i> Best Practices</h6>
+                    <ul class="mb-0">
+                        <li>Use high-quality, well-lit photos</li>
+                        <li>Include multiple angles (front, slight left, slight right)</li>
+                        <li>Ensure the face is clearly visible</li>
+                        <li>Avoid sunglasses or face coverings</li>
+                        <li>Use recent photos for best accuracy</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Important Notes</h6>
+                    <ul class="mb-0">
+                        <li>Only one face should be visible per image</li>
+                        <li>System automatically detects and prevents duplicate faces</li>
+                        <li>Poor quality images may not register properly</li>
+                        <li>Webcam capture requires good lighting</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-camera"></i>
+                    Supported Formats
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <i class="bi bi-file-earmark-image display-6 text-primary"></i>
+                        <div><small>JPEG</small></div>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-file-earmark-image display-6 text-success"></i>
+                        <div><small>PNG</small></div>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-file-earmark-image display-6 text-info"></i>
+                        <div><small>GIF</small></div>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <small class="text-muted">
+                        Maximum file size: 10MB per image<br>
+                        Recommended resolution: 300x300 pixels or higher
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Registration method switching
+document.querySelectorAll('input[name="registration_method"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const uploadSection = document.getElementById('upload_section');
+        const webcamSection = document.getElementById('webcam_section');
+        const faceImagesInput = document.getElementById('face_images');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        if (this.value === 'upload') {
+            uploadSection.style.display = 'block';
+            webcamSection.style.display = 'none';
+            faceImagesInput.required = true;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Register Face';
+        } else {
+            uploadSection.style.display = 'none';
+            webcamSection.style.display = 'block';
+            faceImagesInput.required = false;
+            faceImagesInput.value = '';
+            document.getElementById('imagePreview').style.display = 'none';
+            submitBtn.innerHTML = '<i class="bi bi-camera-video"></i> Start Webcam Capture';
+        }
+    });
+});
+
+// File upload preview
+document.getElementById('face_images').addEventListener('change', function(e) {
+    const files = e.target.files;
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    
+    // Clear previous previews
+    previewContainer.innerHTML = '';
+    
+    if (files.length > 0) {
+        imagePreview.style.display = 'block';
+        
+        Array.from(files).forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-6 col-lg-4 mb-3';
+                    
+                    col.innerHTML = `
+                        <div class="card">
+                            <img src="${e.target.result}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="Preview ${index + 1}">
+                            <div class="card-body p-2">
+                                <small class="text-muted">${file.name}</small>
+                            </div>
+                        </div>
+                    `;
+                    
+                    previewContainer.appendChild(col);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    } else {
+        imagePreview.style.display = 'none';
+    }
+});
+
+// Form validation and submission
+document.getElementById('registrationForm').addEventListener('submit', function(e) {
+    const name = document.getElementById('name').value.trim();
+    const method = document.querySelector('input[name="registration_method"]:checked').value;
+    const files = document.getElementById('face_images').files;
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (!name) {
+        e.preventDefault();
+        alert('Please enter a person name.');
+        return;
+    }
+    
+    if (method === 'upload' && files.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one face image.');
+        return;
+    }
+    
+    // Show loading state based on method
+    if (method === 'upload') {
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing Images...';
+    } else {
+        submitBtn.innerHTML = '<i class="bi bi-camera-video"></i> Starting Camera...';
+    }
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends 'faces/base.html' %}
+
+{% block title %}Detection Logs - Face Detection Security System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Detection Logs</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <form method="get" class="d-flex">
+            <input type="text" class="form-control me-2" name="search" 
+                   placeholder="Search logs..." value="{{ search_query }}">
+            <input type="hidden" name="filter" value="{{ filter_type }}">
+            <button type="submit" class="btn btn-outline-secondary">
+                <i class="bi bi-search"></i>
+            </button>
+        </form>
+    </div>
+    <div class="col-md-4">
+        <form method="get">
+            <input type="hidden" name="search" value="{{ search_query }}">
+            <select name="filter" class="form-select" onchange="this.form.submit()">
+                <option value="all" {% if filter_type == 'all' %}selected{% endif %}>All Types</option>
+                {% for value, label in detection_types %}
+                <option value="{{ value }}" {% if filter_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if search_query or filter_type != 'all' %}
+        <a href="{% url 'detection_logs' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i>
+            Clear Filters
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detection Logs Table -->
+{% if page_obj %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Person</th>
+                        <th>Type</th>
+                        <th>Confidence</th>
+                        <th>Image</th>
+                        <th>Email Sent</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ log.detection_time|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ log.detection_time|date:"H:i:s" }}</small>
+                        </td>
+                        <td>
+                            {% if log.person %}
+                            <a href="{% url 'person_detail' log.person.id %}" class="text-decoration-none">
+                                <strong>{{ log.person.name }}</strong>
+                            </a>
+                            {% else %}
+                            <span class="text-muted">{{ log.get_display_name }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-indicator status-{{ log.detection_type }}"></span>
+                            <span class="badge bg-{% if log.detection_type == 'recognized' %}success{% elif log.detection_type == 'unknown' %}danger{% elif log.detection_type == 'multiple' %}warning{% else %}secondary{% endif %}">
+                                {{ log.get_detection_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if log.confidence_score %}
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar {% if log.confidence_score >= 0.8 %}bg-success{% elif log.confidence_score >= 0.6 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     style="width: {{ log.confidence_score|floatformat:0|add:'00' }}%"></div>
+                            </div>
+                            <small>{{ log.confidence_score|floatformat:3 }}</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.image_snapshot %}
+                            <img src="{{ log.image_snapshot.url }}" class="detection-thumbnail" 
+                                 alt="Detection" onclick="showImageModal('{{ log.image_snapshot.url }}', '{{ log.get_display_name }}', '{{ log.detection_time }}')">
+                            {% else %}
+                            <i class="bi bi-image text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.detection_type == 'unknown' %}
+                                {% if log.email_sent %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i>
+                                    Sent
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle"></i>
+                                    Failed
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.notes %}
+                            <span class="text-truncate d-inline-block" style="max-width: 150px;" 
+                                  title="{{ log.notes }}">{{ log.notes }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Logs pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}">
+                <i class="bi bi-chevron-double-left"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active">
+            <span class="page-link">{{ num }}</span>
+        </li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}">{{ num }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}">
+                <i class="bi bi-chevron-double-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<!-- Empty State -->
+<div class="text-center py-5">
+    {% if search_query or filter_type != 'all' %}
+    <i class="bi bi-search display-1 text-muted"></i>
+    <h3 class="mt-3">No logs found</h3>
+    <p class="text-muted">No detection logs match your current filters</p>
+    <a href="{% url 'detection_logs' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+        View all logs
+    </a>
+    {% else %}
+    <i class="bi bi-list-ul display-1 text-muted"></i>
+    <h3 class="mt-3">No detection logs yet</h3>
+    <p class="text-muted">Detection logs will appear here once the face detection system starts running</p>
+    <div class="mt-3">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-arrow-left"></i>
+            Back to Dashboard
+        </a>
+        <a href="{% url 'register_face' %}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i>
+            Register Faces
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalTitle">Detection Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" class="img-fluid" alt="Detection Image">
+                <div class="mt-3">
+                    <p id="modalDetails" class="text-muted"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showImageModal(imageUrl, personName, detectionTime) {
+    document.getElementById('modalImage').src = imageUrl;
+    document.getElementById('imageModalTitle').textContent = `Detection: ${personName}`;
+    document.getElementById('modalDetails').textContent = `Detected at: ${detectionTime}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

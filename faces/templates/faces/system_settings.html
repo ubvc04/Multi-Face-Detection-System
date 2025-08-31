@@ -1,0 +1,224 @@
+{% extends 'faces/base.html' %}
+
+{% block title %}System Settings - Face Detection Security System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-gear"></i>
+        System Settings
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-sliders"></i>
+                    Detection Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="recognition_threshold" class="form-label">
+                            <strong>Recognition Threshold</strong>
+                        </label>
+                        <input type="range" class="form-range" id="recognition_threshold" 
+                               name="recognition_threshold" min="0.2" max="0.8" step="0.05"
+                               value="{{ settings.recognition_threshold }}"
+                               oninput="updateThresholdValue(this.value)">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Very Strict (0.2)</small>
+                            <small class="text-muted">Lenient (0.8)</small>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-info">Current: <span id="thresholdValue">{{ settings.recognition_threshold }}</span></span>
+                        </div>
+                        <div class="form-text">
+                            Lower values prevent misidentification (recommended: 0.45-0.5 for siblings/similar faces).
+                            Higher values are more forgiving but may cause false matches.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="duplicate_threshold" class="form-label">
+                            <strong>Duplicate Detection Threshold</strong>
+                        </label>
+                        <input type="range" class="form-range" id="duplicate_threshold" 
+                               name="duplicate_threshold" min="0.2" max="0.7" step="0.05"
+                               value="{{ settings.duplicate_threshold }}"
+                               oninput="updateDuplicateValue(this.value)">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Very Strict (0.2)</small>
+                            <small class="text-muted">Lenient (0.7)</small>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-warning">Current: <span id="duplicateValue">{{ settings.duplicate_threshold }}</span></span>
+                        </div>
+                        <div class="form-text">
+                            Threshold for detecting duplicate faces during registration. Lower values prevent nearly identical faces.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="email_alerts" 
+                                   name="email_alerts" {% if settings.email_alerts %}checked{% endif %}>
+                            <label class="form-check-label" for="email_alerts">
+                                <strong>Enable Email Alerts</strong>
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            Send email notifications when unknown faces are detected.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="alert_cooldown" class="form-label">
+                            <strong>Alert Cooldown Period (seconds)</strong>
+                        </label>
+                        <input type="number" class="form-control" id="alert_cooldown" 
+                               name="alert_cooldown" min="60" max="3600" step="60"
+                               value="{{ settings.alert_cooldown }}">
+                        <div class="form-text">
+                            Minimum time between email alerts to prevent spam. Default: 300 seconds (5 minutes).
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i>
+                            Save Settings
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Current Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-7">Recognition Threshold:</dt>
+                    <dd class="col-sm-5">
+                        <span class="badge bg-info">{{ settings.recognition_threshold }}</span>
+                    </dd>
+                    
+                    <dt class="col-sm-7">Email Alerts:</dt>
+                    <dd class="col-sm-5">
+                        {% if settings.email_alerts %}
+                        <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-danger">Disabled</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-7">Duplicate Threshold:</dt>
+                    <dd class="col-sm-5">
+                        <span class="badge bg-warning">{{ settings.duplicate_threshold }}</span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-envelope"></i>
+                    Email Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">SMTP Host:</dt>
+                    <dd class="col-sm-7">smtp.gmail.com</dd>
+                    
+                    <dt class="col-sm-5">Port:</dt>
+                    <dd class="col-sm-7">587 (TLS)</dd>
+                    
+                    <dt class="col-sm-5">From Email:</dt>
+                    <dd class="col-sm-7"><small>baveshchowdary1@gmail.com</small></dd>
+                    
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle"></i>
+                            Configured
+                        </span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightbulb"></i>
+                    Recommendations
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Threshold Guidelines</h6>
+                    <ul class="mb-0">
+                        <li><strong>Recognition 0.4-0.5:</strong> Strict (prevents brother/sister mixups)</li>
+                        <li><strong>Recognition 0.6:</strong> Balanced (recommended)</li>
+                        <li><strong>Duplicate 0.4:</strong> Prevents very similar faces</li>
+                        <li><strong>Duplicate 0.5-0.6:</strong> Lenient for variations</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Performance Notes</h6>
+                    <ul class="mb-0">
+                        <li>Lower thresholds may require more training images</li>
+                        <li>Test different values with your camera setup</li>
+                        <li>Monitor false positive/negative rates</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateThresholdValue(value) {
+    document.getElementById('thresholdValue').textContent = value;
+}
+
+function updateDuplicateValue(value) {
+    document.getElementById('duplicateValue').textContent = value;
+}
+
+// Initialize threshold displays
+document.addEventListener('DOMContentLoaded', function() {
+    const threshold = document.getElementById('recognition_threshold').value;
+    const duplicate = document.getElementById('duplicate_threshold').value;
+    updateThresholdValue(threshold);
+    updateDuplicateValue(duplicate);
+});
+</script>
+{% endblock %}
