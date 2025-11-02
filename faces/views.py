@@ -36,31 +36,95 @@ camera_instance = None
 camera_lock = threading.Lock()
 
 def login_view(request):
-    """User login view"""
+    """User login view with OTP verification"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        action = request.POST.get('action', 'request_otp')
         
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
+        if action == 'request_otp':
+            # Step 1: Request OTP
+            username = request.POST.get('username')
+            password = request.POST.get('password')
             
-            # Send login notification email
-            try:
-                send_mail(
-                    subject='Login Notification - Face Detection System',
-                    message=f'Hello {user.username},\n\nYou have successfully logged in to the Face Detection System.\n\nLogin Time: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}\n\nIf this wasn\'t you, please contact the administrator immediately.\n\nBest regards,\nFace Detection System',
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[user.email],
-                    fail_silently=True,
-                )
-            except Exception as e:
-                logger.error(f"Failed to send login notification: {e}")
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                # Generate 6-digit OTP
+                otp = str(random.randint(100000, 999999))
+                
+                # Store OTP and user info in session
+                request.session['login_otp'] = otp
+                request.session['login_user_id'] = user.id
+                request.session['login_otp_created_at'] = timezone.now().isoformat()
+                
+                # Send OTP email
+                try:
+                    send_mail(
+                        subject='Login Verification Code - Face Detection System',
+                        message=f'Hello {user.username},\n\nYour login verification code is: {otp}\n\nThis code will expire in 5 minutes.\n\nLogin Time: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}\n\nIf you didn\'t attempt to log in, please secure your account immediately.\n\nBest regards,\nFace Detection System',
+                        from_email=settings.EMAIL_HOST_USER,
+                        recipient_list=[user.email],
+                        fail_silently=False,
+                    )
+                    return JsonResponse({
+                        'success': True, 
+                        'message': 'OTP sent to your email.',
+                        'email': user.email[:3] + '***' + user.email[user.email.index('@'):]
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to send login OTP: {e}")
+                    return JsonResponse({'success': False, 'message': 'Failed to send OTP. Please try again.'})
+            else:
+                return JsonResponse({'success': False, 'message': 'Invalid username or password.'})
+        
+        elif action == 'verify_otp':
+            # Step 2: Verify OTP and login automatically
+            otp_entered = request.POST.get('otp')
             
-            messages.success(request, f'Welcome back, {user.username}!')
-            return redirect('dashboard')
-        else:
-            messages.error(request, 'Invalid username or password.')
+            # Get data from session
+            stored_otp = request.session.get('login_otp')
+            user_id = request.session.get('login_user_id')
+            otp_created_at = request.session.get('login_otp_created_at')
+            
+            if not all([stored_otp, user_id, otp_created_at]):
+                return JsonResponse({'success': False, 'message': 'Session expired. Please start again.'})
+            
+            # Check OTP expiration (5 minutes)
+            otp_time = datetime.fromisoformat(otp_created_at)
+            if timezone.now() - otp_time > timedelta(minutes=5):
+                # Clear session data
+                request.session.pop('login_otp', None)
+                request.session.pop('login_user_id', None)
+                request.session.pop('login_otp_created_at', None)
+                return JsonResponse({'success': False, 'message': 'OTP expired. Please login again.'})
+            
+            # Verify OTP
+            if otp_entered == stored_otp:
+                try:
+                    user = User.objects.get(id=user_id)
+                    login(request, user)
+                    
+                    # Clear session data
+                    del request.session['login_otp']
+                    del request.session['login_user_id']
+                    del request.session['login_otp_created_at']
+                    
+                    # Send login notification email
+                    try:
+                        send_mail(
+                            subject='Login Notification - Face Detection System',
+                            message=f'Hello {user.username},\n\nYou have successfully logged in to the Face Detection System.\n\nLogin Time: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}\n\nIf this wasn\'t you, please contact the administrator immediately.\n\nBest regards,\nFace Detection System',
+                            from_email=settings.EMAIL_HOST_USER,
+                            recipient_list=[user.email],
+                            fail_silently=True,
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send login notification: {e}")
+                    
+                    return JsonResponse({'success': True, 'message': 'Login successful!', 'redirect': '/dashboard/'})
+                    
+                except User.DoesNotExist:
+                    return JsonResponse({'success': False, 'message': 'User not found. Please try again.'})
+            else:
+                return JsonResponse({'success': False, 'message': 'Invalid OTP. Please try again.'})
     
     return render(request, 'faces/login.html')
 
@@ -112,7 +176,7 @@ def signup_view(request):
                 return JsonResponse({'success': False, 'message': 'Failed to send OTP. Please try again.'})
         
         elif action == 'verify_otp':
-            # Step 2: Verify OTP and create user
+            # Step 2: Verify OTP, create user and auto-login
             otp_entered = request.POST.get('otp')
             
             # Get data from session
@@ -123,19 +187,21 @@ def signup_view(request):
             otp_created_at = request.session.get('otp_created_at')
             
             if not all([stored_otp, username, email, password, otp_created_at]):
-                messages.error(request, 'Session expired. Please start again.')
-                return redirect('signup')
+                return JsonResponse({'success': False, 'message': 'Session expired. Please start again.'})
             
             # Check OTP expiration (10 minutes)
             otp_time = datetime.fromisoformat(otp_created_at)
             if timezone.now() - otp_time > timedelta(minutes=10):
-                messages.error(request, 'OTP expired. Please request a new one.')
-                return redirect('signup')
+                return JsonResponse({'success': False, 'message': 'OTP expired. Please request a new one.'})
             
             # Verify OTP
             if otp_entered == stored_otp:
                 # Create user
                 try:
+                    # Double-check email doesn't exist
+                    if User.objects.filter(email=email).exists():
+                        return JsonResponse({'success': False, 'message': 'Email already registered.'})
+                    
                     user = User.objects.create_user(
                         username=username,
                         email=email,
@@ -149,11 +215,14 @@ def signup_view(request):
                     del request.session['signup_password']
                     del request.session['otp_created_at']
                     
+                    # Auto-login the user
+                    login(request, user)
+                    
                     # Send welcome email
                     try:
                         send_mail(
                             subject='Welcome to Face Detection System',
-                            message=f'Hello {username},\n\nWelcome to the Face Detection System!\n\nYour account has been successfully created.\n\nYou can now log in and start using the system.\n\nBest regards,\nFace Detection System',
+                            message=f'Hello {username},\n\nWelcome to the Face Detection System!\n\nYour account has been successfully created and you are now logged in.\n\nYou can now start using the system to register faces and monitor detections.\n\nBest regards,\nFace Detection System',
                             from_email=settings.EMAIL_HOST_USER,
                             recipient_list=[email],
                             fail_silently=True,
@@ -161,16 +230,13 @@ def signup_view(request):
                     except Exception as e:
                         logger.error(f"Failed to send welcome email: {e}")
                     
-                    messages.success(request, 'Account created successfully! Please log in.')
-                    return redirect('login')
+                    return JsonResponse({'success': True, 'message': 'Account created successfully!', 'redirect': '/dashboard/'})
                     
                 except Exception as e:
                     logger.error(f"Error creating user: {e}")
-                    messages.error(request, 'Error creating account. Please try again.')
-                    return redirect('signup')
+                    return JsonResponse({'success': False, 'message': 'Error creating account. Please try again.'})
             else:
-                messages.error(request, 'Invalid OTP. Please try again.')
-                return redirect('signup')
+                return JsonResponse({'success': False, 'message': 'Invalid OTP. Please try again.'})
     
     return render(request, 'faces/signup.html')
 

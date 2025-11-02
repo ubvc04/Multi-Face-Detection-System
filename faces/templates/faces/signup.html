@@ -392,6 +392,11 @@ document.addEventListener('DOMContentLoaded', function() {
             let otp = '';
             otpInputs.forEach(inp => otp += inp.value);
             otpValue.value = otp;
+            
+            // Auto-submit when all 6 digits are entered
+            if (otp.length === 6) {
+                submitOtpForSignup();
+            }
         });
         
         input.addEventListener('keydown', function(e) {
@@ -400,6 +405,47 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Function to submit OTP for signup
+    function submitOtpForSignup() {
+        const otp = otpValue.value;
+        if (otp.length !== 6) {
+            return;
+        }
+        
+        const submitBtn = document.getElementById('verifyOtpBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating Account...';
+        
+        const formData = new FormData(signupForm);
+        
+        fetch('{% url "signup" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Success! Logging in...';
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 500);
+            } else {
+                alert(data.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Verify & Create Account';
+                // Clear OTP inputs
+                otpInputs.forEach(input => input.value = '');
+                otpValue.value = '';
+                otpInputs[0].focus();
+            }
+        })
+        .catch(error => {
+            alert('Error verifying OTP. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Verify & Create Account';
+        });
+    }
     
     // Form submission
     signupForm.addEventListener('submit', function(e) {
@@ -443,17 +489,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.innerHTML = '<i class="bi bi-send-fill"></i> Send Verification Code';
             });
         } else if (action === 'verify_otp') {
-            const otp = otpValue.value;
-            if (otp.length !== 6) {
-                alert('Please enter the complete 6-digit code.');
-                return;
-            }
-            
-            const submitBtn = document.getElementById('verifyOtpBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verifying...';
-            
-            this.submit();
+            // Manual submit (if user clicks the button)
+            submitOtpForSignup();
         }
     });
     

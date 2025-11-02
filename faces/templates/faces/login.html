@@ -2,34 +2,181 @@
 
 {% block title %}Login - Face Detection Security System{% endblock %}
 
+{% block extra_css %}
+<style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .login-card {
+        animation: fadeInUp 0.6s ease-out;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 15px;
+    }
+
+    .login-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .login-header i {
+        font-size: 3rem;
+        animation: pulse 2s infinite;
+    }
+
+    .btn-login {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .otp-container {
+        display: none;
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    .otp-input {
+        width: 50px;
+        height: 50px;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        margin: 0 5px;
+    }
+
+    .otp-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        outline: none;
+    }
+
+    .feature-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        margin: 0 auto 1rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6 col-lg-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="text-center mb-4">
-                    <i class="bi bi-shield-lock display-4 text-primary"></i>
-                    <h3 class="mt-2">Face Security System</h3>
-                    <p class="text-muted">Please sign in to continue</p>
-                </div>
-
-                <form method="post">
+        <div class="card login-card">
+            <div class="login-header">
+                <i class="bi bi-shield-lock"></i>
+                <h3 class="mt-2 mb-1">Face Security System</h3>
+                <p class="mb-0">Secure Login with OTP</p>
+            </div>
+            
+            <div class="card-body p-4">
+                <!-- Login Form -->
+                <form id="loginForm" method="post">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                    <input type="hidden" name="action" id="formAction" value="request_otp">
+                    
+                    <div id="credentialsFields">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">
+                                <i class="bi bi-person-circle"></i> Username
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   required style="border-radius: 10px; padding: 12px;">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                <i class="bi bi-lock-fill"></i> Password
+                            </label>
+                            <div class="position-relative">
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       required style="border-radius: 10px; padding: 12px;">
+                                <i class="bi bi-eye-slash position-absolute" id="togglePassword" 
+                                   style="right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer;"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-login" id="requestOtpBtn">
+                                <i class="bi bi-shield-check"></i> Send OTP
+                            </button>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                    
+                    <!-- OTP Verification Section -->
+                    <div class="otp-container" id="otpContainer">
+                        <div class="text-center mb-4">
+                            <div class="feature-icon">
+                                <i class="bi bi-envelope-check"></i>
+                            </div>
+                            <h5>Verify Your Identity</h5>
+                            <p class="text-muted">
+                                Enter the 6-digit code sent to<br>
+                                <strong id="emailDisplay"></strong>
+                            </p>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center mb-4">
+                            <input type="text" class="otp-input" maxlength="1" id="otp1" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp2" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp3" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp4" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp5" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp6" />
+                        </div>
+                        <input type="hidden" name="otp" id="otpValue">
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-login" id="verifyOtpBtn">
+                                <i class="bi bi-check-circle-fill"></i> Verify & Login
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-link" id="resendOtp">
+                                <i class="bi bi-arrow-clockwise"></i> Back to Login
+                            </button>
+                        </div>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-box-arrow-in-right"></i>
-                            Sign In
-                        </button>
-                    </div>
-                    <div class="text-center mt-3">
+                    
+                    <div class="text-center mt-3" id="signupLink">
                         <p class="mb-0">Don't have an account? <a href="{% url 'signup' %}" class="text-decoration-none">Sign Up</a></p>
                     </div>
                 </form>
@@ -39,9 +186,154 @@
         <div class="text-center mt-3 text-muted">
             <small>
                 <i class="bi bi-info-circle"></i>
-                Use your admin credentials to access the system
+                Secured with Two-Factor Authentication
             </small>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const credentialsFields = document.getElementById('credentialsFields');
+    const otpContainer = document.getElementById('otpContainer');
+    const formAction = document.getElementById('formAction');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const emailDisplay = document.getElementById('emailDisplay');
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const otpValue = document.getElementById('otpValue');
+    const signupLink = document.getElementById('signupLink');
+    
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.classList.toggle('bi-eye');
+        this.classList.toggle('bi-eye-slash');
+    });
+    
+    // OTP input auto-focus
+    otpInputs.forEach((input, index) => {
+        input.addEventListener('input', function() {
+            if (this.value.length === 1 && index < otpInputs.length - 1) {
+                otpInputs[index + 1].focus();
+            }
+            
+            // Combine OTP values
+            let otp = '';
+            otpInputs.forEach(inp => otp += inp.value);
+            otpValue.value = otp;
+            
+            // Auto-submit when all 6 digits are entered
+            if (otp.length === 6) {
+                submitOtpForLogin();
+            }
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                otpInputs[index - 1].focus();
+            }
+        });
+    });
+    
+    // Function to submit OTP for login
+    function submitOtpForLogin() {
+        const otp = otpValue.value;
+        if (otp.length !== 6) {
+            return;
+        }
+        
+        const submitBtn = document.getElementById('verifyOtpBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verifying...';
+        
+        const formData = new FormData(loginForm);
+        
+        fetch('{% url "login" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Success! Redirecting...';
+                submitBtn.classList.remove('btn-success');
+                submitBtn.classList.add('btn-success');
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 500);
+            } else {
+                alert(data.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Verify & Login';
+                // Clear OTP inputs
+                otpInputs.forEach(input => input.value = '');
+                otpValue.value = '';
+                otpInputs[0].focus();
+            }
+        })
+        .catch(error => {
+            alert('Error verifying OTP. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Verify & Login';
+        });
+    }
+    
+    // Form submission
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const action = formAction.value;
+        
+        if (action === 'request_otp') {
+            const submitBtn = document.getElementById('requestOtpBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending OTP...';
+            
+            const formData = new FormData(this);
+            
+            fetch('{% url "login" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    emailDisplay.textContent = data.email;
+                    credentialsFields.style.display = 'none';
+                    signupLink.style.display = 'none';
+                    otpContainer.style.display = 'block';
+                    formAction.value = 'verify_otp';
+                    otpInputs[0].focus();
+                } else {
+                    alert(data.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-shield-check"></i> Send OTP';
+                }
+            })
+            .catch(error => {
+                alert('Error sending OTP. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-shield-check"></i> Send OTP';
+            });
+        } else if (action === 'verify_otp') {
+            // Manual submit (if user clicks the button)
+            submitOtpForLogin();
+        }
+    });
+    
+    // Back to login
+    document.getElementById('resendOtp').addEventListener('click', function() {
+        otpContainer.style.display = 'none';
+        credentialsFields.style.display = 'block';
+        signupLink.style.display = 'block';
+        formAction.value = 'request_otp';
+        otpInputs.forEach(input => input.value = '');
+        document.getElementById('requestOtpBtn').disabled = false;
+        document.getElementById('requestOtpBtn').innerHTML = '<i class="bi bi-shield-check"></i> Send OTP';
+    });
+});
+</script>
 {% endblock %}
