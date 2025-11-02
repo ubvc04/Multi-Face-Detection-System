@@ -140,8 +140,12 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'baveshchowdary1@gmail.com'
-EMAIL_HOST_PASSWORD = 'ilsp zgmj pfhj iyli'
+EMAIL_HOST_PASSWORD = 'mfws kkqr rihw dbgb'
 DEFAULT_FROM_EMAIL = 'baveshchowdary1@gmail.com'
+
+# Session Configuration
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_SAVE_EVERY_REQUEST = True
 
 # Logging configuration
 LOGGING = {

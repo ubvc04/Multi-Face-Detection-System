@@ -5,7 +5,9 @@ urlpatterns = [
     # Authentication
     path('', views.login_view, name='login'),
     path('login/', views.login_view, name='login'),
+    path('signup/', views.signup_view, name='signup'),
     path('logout/', views.logout_view, name='logout'),
+    path('api/check-username/', views.check_username_availability, name='check_username'),
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),

@@ -1,128 +1,253 @@
-# Face Detection & Recognition Security System
+# Multi-Face Detection System# Face Detection & Recognition Security System
 
-A comprehensive Django-based face detection and recognition security system with real-time monitoring, email alerts, and admin dashboard.
 
-## 🔹 Features
 
-- **Real-time Face Detection**: Uses OpenCV and face_recognition for accurate detection
-- **Face Registration**: Easy web interface to register multiple face images per person
-- **Unknown Face Alerts**: Automatic email notifications with snapshots when unknown faces are detected
-- **Admin Dashboard**: Comprehensive web interface to manage persons, view logs, and configure settings
-- **Multi-face Support**: Can detect and recognize multiple faces simultaneously
-- **Logging System**: Detailed logs of all detection events with timestamps and images
+A Django-based face detection and recognition security system with real-time monitoring and email alerts.A comprehensive Django-based face detection and recognition security system with real-time monitoring, email alerts, and admin dashboard.
+
+
+
+## Features## 🔹 Features
+
+
+
+- 🎯 Real-time face detection and recognition- **Real-time Face Detection**: Uses OpenCV and face_recognition for accurate detection
+
+- 👤 Web interface for face registration- **Face Registration**: Easy web interface to register multiple face images per person
+
+- 📧 Email alerts for unknown faces- **Unknown Face Alerts**: Automatic email notifications with snapshots when unknown faces are detected
+
+- 📊 Admin dashboard with detection logs- **Admin Dashboard**: Comprehensive web interface to manage persons, view logs, and configure settings
+
+- 🔧 Configurable detection settings- **Multi-face Support**: Can detect and recognize multiple faces simultaneously
+
+- 🖼️ Automatic snapshot capture- **Logging System**: Detailed logs of all detection events with timestamps and images
+
 - **Configurable Settings**: Adjustable recognition threshold and alert settings
-- **Production Ready**: Built with Django best practices and proper error handling
 
-## 🔹 System Requirements
+## Requirements- **Production Ready**: Built with Django best practices and proper error handling
 
-- Python 3.11+
-- Windows/Linux/macOS
+
+
+- Python 3.8+## 🔹 System Requirements
+
 - Webcam or IP camera
+
+- Gmail account (for email alerts)- Python 3.11+
+
+- Windows/Linux/macOS
+
+## Quick Start- Webcam or IP camera
+
 - Gmail account for email alerts
+
+### 1. Install Dependencies
 
 ## 🔹 Installation Guide
 
-### Step 1: Clone and Setup Environment
+```bash
+
+# Create virtual environment### Step 1: Clone and Setup Environment
+
+python -m venv venv
 
 ```bash
-# Navigate to your project directory
-cd "c:\Users\baves\Downloads\Multi Face Detection System"
 
-# Activate the virtual environment (already created)
-.\venv\Scripts\Activate.ps1  # Windows PowerShell
-# or
-# source venv/bin/activate  # Linux/Mac
+# Activate virtual environment# Navigate to your project directory
 
-# Verify Python version
-python --version  # Should show Python 3.11.x
-```
+# Windows PowerShell:cd "c:\Users\baves\Downloads\Multi Face Detection System"
 
-### Step 2: Install Dependencies
-
-All required packages are already installed in your virtual environment:
-- Django==4.2.7
-- opencv-python==4.8.1.78
-- opencv-contrib-python==4.8.1.78
-- face-recognition==1.3.0
-- Pillow==10.0.1
-- numpy==1.24.3
-- dlib==19.24.2
-- python-decouple==3.8
-- requests==2.31.0
-
-### Step 3: Database Setup
-
-```bash
-# Create database tables
-python manage.py migrate
-
-# Create superuser account (already created)
-# Username: bavesh
-# Email: baveshchowdary1@gmail.com
-# Password: [your password]
-```
-
-### Step 4: Start the Application
-
-```bash
-# Start Django development server
-python manage.py runserver
-
-# The application will be available at: http://127.0.0.1:8000/
-```
-
-## 🔹 Usage Instructions
-
-### 1. Admin Login
-- Open http://127.0.0.1:8000/ in your browser
-- Login with your admin credentials:
-  - Username: `bavesh`
-  - Password: [your password]
-
-### 2. Register Faces
-1. Click "Register Face" in the dashboard
-2. Enter the person's name
-3. Upload one or more clear face images
-4. Click "Register Face" to save
-
-**Best Practices for Face Registration:**
-- Use high-quality, well-lit photos
-- Include multiple angles (front, slight left, slight right)
-- Ensure only one face is visible per image
-- Avoid sunglasses or face coverings
-
-### 3. Start Face Detection
-Open a new terminal and run:
-
-```bash
-# Activate virtual environment first
 .\venv\Scripts\Activate.ps1
 
-# Start the face detection system
-python detector.py
+# Windows CMD:# Activate the virtual environment (already created)
+
+.\venv\Scripts\activate.bat.\venv\Scripts\Activate.ps1  # Windows PowerShell
+
+# Linux/Mac:# or
+
+source venv/bin/activate# source venv/bin/activate  # Linux/Mac
+
+
+
+# Install required packages# Verify Python version
+
+pip install -r requirements.txtpython --version  # Should show Python 3.11.x
+
+``````
+
+
+
+### 2. Setup Database### Step 2: Install Dependencies
+
+
+
+```bashAll required packages are already installed in your virtual environment:
+
+# Run migrations- Django==4.2.7
+
+python manage.py migrate- opencv-python==4.8.1.78
+
+- opencv-contrib-python==4.8.1.78
+
+# Create admin user- face-recognition==1.3.0
+
+python manage.py createsuperuser- Pillow==10.0.1
+
+```- numpy==1.24.3
+
+- dlib==19.24.2
+
+### 3. Start the Application- python-decouple==3.8
+
+- requests==2.31.0
+
+```bash
+
+# Start Django server### Step 3: Database Setup
+
+python manage.py runserver
+
+```bash
+
+# Or use the startup script# Create database tables
+
+# Windows:python manage.py migrate
+
+start.bat
+
+# PowerShell:# Create superuser account (already created)
+
+.\start.ps1# Username: bavesh
+
+```# Email: baveshchowdary1@gmail.com
+
+# Password: [your password]
+
+Access the application at: **http://127.0.0.1:8000/**```
+
+
+
+## Usage### Step 4: Start the Application
+
+
+
+1. **Login** - Use your admin credentials```bash
+
+2. **Register Faces** - Add persons with their face images# Start Django development server
+
+3. **Configure Settings** - Set detection threshold and email alertspython manage.py runserver
+
+4. **Monitor** - View detection logs and snapshots
+
+# The application will be available at: http://127.0.0.1:8000/
+
+## Email Configuration```
+
+
+
+Update the email settings in `face_security/settings.py`:## 🔹 Usage Instructions
+
+
+
+```python### 1. Admin Login
+
+EMAIL_HOST_USER = 'your-email@gmail.com'- Open http://127.0.0.1:8000/ in your browser
+
+EMAIL_HOST_PASSWORD = 'your-app-password'- Login with your admin credentials:
+
+```  - Username: `bavesh`
+
+  - Password: [your password]
+
+**Note**: Use Gmail App Password, not your regular password.
+
+### 2. Register Faces
+
+## Project Structure1. Click "Register Face" in the dashboard
+
+2. Enter the person's name
+
+```3. Upload one or more clear face images
+
+Multi-Face-Detection-System/4. Click "Register Face" to save
+
+├── face_security/          # Django project settings
+
+├── faces/                  # Main application**Best Practices for Face Registration:**
+
+│   ├── models.py          # Database models- Use high-quality, well-lit photos
+
+│   ├── views.py           # View logic- Include multiple angles (front, slight left, slight right)
+
+│   ├── templates/         # HTML templates- Ensure only one face is visible per image
+
+│   └── utils.py           # Utility functions- Avoid sunglasses or face coverings
+
+├── media/                 # Uploaded files & snapshots
+
+├── manage.py              # Django management### 3. Start Face Detection
+
+└── requirements.txt       # DependenciesOpen a new terminal and run:
+
 ```
 
-**Detection Controls:**
-- Press `q` to quit the detection system
-- Press `r` to reload known faces from database
-- Press `s` to reload system settings
+```bash
 
-### 4. Monitor Detection Logs
+## Troubleshooting# Activate virtual environment first
+
+.\venv\Scripts\Activate.ps1
+
+**Camera not found**: Try different camera index in detection settings
+
+# Start the face detection system
+
+**Face not recognized**: python detector.py
+
+- Register multiple face angles```
+
+- Ensure good lighting
+
+- Adjust recognition threshold**Detection Controls:**
+
+- Press `q` to quit the detection system
+
+**Email not working**: - Press `r` to reload known faces from database
+
+- Check Gmail app password- Press `s` to reload system settings
+
+- Verify internet connection
+
+- Check spam folder### 4. Monitor Detection Logs
+
 - View real-time detections in the dashboard
-- Check detailed logs in "Detection Logs" section
+
+## Security Notes- Check detailed logs in "Detection Logs" section
+
 - Review email alerts for unknown faces
 
-### 5. System Configuration
-- Go to "Settings" to configure:
-  - Recognition threshold (0.3-0.9)
+- Change default admin credentials
+
+- Use HTTPS in production### 5. System Configuration
+
+- Regularly backup face data- Go to "Settings" to configure:
+
+- Follow local privacy laws  - Recognition threshold (0.3-0.9)
+
   - Email alert settings
-  - Alert cooldown period
 
-## 🔹 Email Alert Configuration
+## License  - Alert cooldown period
 
-The system is pre-configured with Gmail SMTP:
+
+
+For educational and personal use.## 🔹 Email Alert Configuration
+
+
+
+---The system is pre-configured with Gmail SMTP:
+
 - **SMTP Server**: smtp.gmail.com
-- **Port**: 587 (TLS)
+
+**Version**: 1.0.0- **Port**: 587 (TLS)
+
 - **Email**: baveshchowdary1@gmail.com
 - **App Password**: ilsp zgmj pfhj iyli
 

@@ -1,0 +1,469 @@
+{% extends 'faces/base.html' %}
+
+{% block title %}Sign Up - Face Detection Security System{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .signup-card {
+        animation: fadeInUp 0.6s ease-out;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .signup-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .signup-header i {
+        font-size: 3rem;
+        animation: pulse 2s infinite;
+    }
+
+    .form-floating-custom {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-floating-custom input {
+        border-radius: 10px;
+        padding: 12px 45px 12px 15px;
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+
+    .form-floating-custom input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        outline: none;
+    }
+
+    .form-floating-custom .input-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+        z-index: 10;
+    }
+
+    .availability-message {
+        font-size: 0.85rem;
+        margin-top: 5px;
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    .btn-signup {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-signup:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .otp-container {
+        display: none;
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    .otp-input {
+        width: 50px;
+        height: 50px;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        margin: 0 5px;
+    }
+
+    .otp-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        outline: none;
+    }
+
+    .password-strength {
+        height: 5px;
+        border-radius: 5px;
+        margin-top: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .strength-weak { background: #dc3545; width: 33%; }
+    .strength-medium { background: #ffc107; width: 66%; }
+    .strength-strong { background: #28a745; width: 100%; }
+
+    .feature-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        margin: 0 auto 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card signup-card">
+            <div class="signup-header">
+                <i class="bi bi-person-plus-fill"></i>
+                <h2 class="mt-3 mb-1">Create Account</h2>
+                <p class="mb-0">Join the Face Detection Security System</p>
+            </div>
+            
+            <div class="card-body p-4">
+                <!-- Registration Form -->
+                <form id="signupForm" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" id="formAction" value="send_otp">
+                    
+                    <div id="registrationFields">
+                        <!-- Username Field -->
+                        <div class="form-floating-custom">
+                            <label for="username" class="form-label">
+                                <i class="bi bi-person-circle"></i> Username *
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   required minlength="3" maxlength="30" 
+                                   pattern="[a-zA-Z0-9_]+" 
+                                   title="Username can only contain letters, numbers, and underscores">
+                        </div>
+                        
+                        <!-- Check Availability Button -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-primary w-100" 
+                                    id="checkUsernameBtn" style="border-radius: 10px; padding: 10px;">
+                                <i class="bi bi-search"></i> Check Username Availability
+                            </button>
+                        </div>
+                        
+                        <!-- Username Availability Message -->
+                        <div id="usernameAvailability" class="availability-message mb-3"></div>
+                        
+                        <!-- Email Field -->
+                        <div class="form-floating-custom">
+                            <label for="email" class="form-label">
+                                <i class="bi bi-envelope-fill"></i> Email Address *
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <i class="bi bi-envelope input-icon"></i>
+                        </div>
+                        
+                        <!-- Password Field -->
+                        <div class="form-floating-custom">
+                            <label for="password" class="form-label">
+                                <i class="bi bi-lock-fill"></i> Password *
+                            </label>
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   required minlength="8">
+                            <i class="bi bi-eye-slash input-icon" id="togglePassword" style="cursor: pointer;"></i>
+                        </div>
+                        <div class="password-strength" id="passwordStrength"></div>
+                        <small class="text-muted">Password must be at least 8 characters long</small>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-signup" id="sendOtpBtn">
+                                <i class="bi bi-send-fill"></i> Send Verification Code
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- OTP Verification Section -->
+                    <div class="otp-container" id="otpContainer">
+                        <div class="text-center mb-4">
+                            <div class="feature-icon">
+                                <i class="bi bi-shield-check"></i>
+                            </div>
+                            <h5>Verify Your Email</h5>
+                            <p class="text-muted">
+                                We've sent a 6-digit code to <strong id="emailDisplay"></strong>
+                            </p>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center mb-4">
+                            <input type="text" class="otp-input" maxlength="1" id="otp1" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp2" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp3" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp4" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp5" />
+                            <input type="text" class="otp-input" maxlength="1" id="otp6" />
+                        </div>
+                        <input type="hidden" name="otp" id="otpValue">
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-signup" id="verifyOtpBtn">
+                                <i class="bi bi-check-circle-fill"></i> Verify & Create Account
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-link" id="resendOtp">
+                                <i class="bi bi-arrow-clockwise"></i> Resend Code
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="mb-0">
+                        Already have an account? 
+                        <a href="{% url 'login' %}" class="text-decoration-none fw-bold">
+                            <i class="bi bi-box-arrow-in-right"></i> Sign In
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Features Section -->
+        <div class="row mt-4 text-center">
+            <div class="col-md-4">
+                <i class="bi bi-shield-check text-primary" style="font-size: 2rem;"></i>
+                <h6 class="mt-2">Secure</h6>
+                <small class="text-muted">Advanced security features</small>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-person-check text-success" style="font-size: 2rem;"></i>
+                <h6 class="mt-2">Face Recognition</h6>
+                <small class="text-muted">AI-powered detection</small>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-bell text-warning" style="font-size: 2rem;"></i>
+                <h6 class="mt-2">Real-time Alerts</h6>
+                <small class="text-muted">Instant notifications</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const signupForm = document.getElementById('signupForm');
+    const registrationFields = document.getElementById('registrationFields');
+    const otpContainer = document.getElementById('otpContainer');
+    const formAction = document.getElementById('formAction');
+    const checkUsernameBtn = document.getElementById('checkUsernameBtn');
+    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordStrength = document.getElementById('passwordStrength');
+    const emailDisplay = document.getElementById('emailDisplay');
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const otpValue = document.getElementById('otpValue');
+    
+    let usernameAvailable = false;
+    
+    // Check username availability
+    checkUsernameBtn.addEventListener('click', function() {
+        const username = usernameInput.value.trim();
+        const availabilityDiv = document.getElementById('usernameAvailability');
+        
+        if (!username || username.length < 3) {
+            availabilityDiv.innerHTML = '<div class="text-danger"><i class="bi bi-x-circle"></i> Username must be at least 3 characters</div>';
+            usernameAvailable = false;
+            return;
+        }
+        
+        checkUsernameBtn.disabled = true;
+        checkUsernameBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Checking...';
+        
+        fetch('{% url "check_username" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username: username })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.available) {
+                availabilityDiv.innerHTML = `<div class="text-success"><i class="bi bi-check-circle-fill"></i> ${data.message}</div>`;
+                usernameAvailable = true;
+            } else {
+                availabilityDiv.innerHTML = `<div class="text-danger"><i class="bi bi-x-circle-fill"></i> ${data.message}</div>`;
+                usernameAvailable = false;
+            }
+            checkUsernameBtn.disabled = false;
+            checkUsernameBtn.innerHTML = 'Check Availability';
+        })
+        .catch(error => {
+            availabilityDiv.innerHTML = '<div class="text-danger"><i class="bi bi-exclamation-circle"></i> Error checking username</div>';
+            checkUsernameBtn.disabled = false;
+            checkUsernameBtn.innerHTML = 'Check Availability';
+            usernameAvailable = false;
+        });
+    });
+    
+    // Reset username availability when username changes
+    usernameInput.addEventListener('input', function() {
+        document.getElementById('usernameAvailability').innerHTML = '';
+        usernameAvailable = false;
+    });
+    
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.classList.toggle('bi-eye');
+        this.classList.toggle('bi-eye-slash');
+    });
+    
+    // Password strength indicator
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        
+        if (password.length >= 8) strength++;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^a-zA-Z0-9]/.test(password)) strength++;
+        
+        passwordStrength.className = 'password-strength';
+        if (strength >= 3) {
+            passwordStrength.classList.add('strength-strong');
+        } else if (strength >= 2) {
+            passwordStrength.classList.add('strength-medium');
+        } else if (password.length > 0) {
+            passwordStrength.classList.add('strength-weak');
+        }
+    });
+    
+    // OTP input auto-focus
+    otpInputs.forEach((input, index) => {
+        input.addEventListener('input', function() {
+            if (this.value.length === 1 && index < otpInputs.length - 1) {
+                otpInputs[index + 1].focus();
+            }
+            
+            // Combine OTP values
+            let otp = '';
+            otpInputs.forEach(inp => otp += inp.value);
+            otpValue.value = otp;
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                otpInputs[index - 1].focus();
+            }
+        });
+    });
+    
+    // Form submission
+    signupForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const action = formAction.value;
+        
+        if (action === 'send_otp') {
+            if (!usernameAvailable) {
+                alert('Please check username availability first.');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('sendOtpBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending...';
+            
+            const formData = new FormData(this);
+            
+            fetch('{% url "signup" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    emailDisplay.textContent = emailInput.value;
+                    registrationFields.style.display = 'none';
+                    otpContainer.style.display = 'block';
+                    formAction.value = 'verify_otp';
+                    otpInputs[0].focus();
+                } else {
+                    alert(data.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-send-fill"></i> Send Verification Code';
+                }
+            })
+            .catch(error => {
+                alert('Error sending OTP. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-send-fill"></i> Send Verification Code';
+            });
+        } else if (action === 'verify_otp') {
+            const otp = otpValue.value;
+            if (otp.length !== 6) {
+                alert('Please enter the complete 6-digit code.');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('verifyOtpBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verifying...';
+            
+            this.submit();
+        }
+    });
+    
+    // Resend OTP
+    document.getElementById('resendOtp').addEventListener('click', function() {
+        otpContainer.style.display = 'none';
+        registrationFields.style.display = 'block';
+        formAction.value = 'send_otp';
+        otpInputs.forEach(input => input.value = '');
+    });
+});
+</script>
+{% endblock %}

@@ -1,13 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
+from django.core.mail import send_mail
 from django.db.models import Q
 from django.utils import timezone
+from django.conf import settings
 from .models import Person, FaceEncoding, DetectionLog, SystemSettings
 from .utils import (
     extract_face_encoding, extract_face_encoding_with_validation, 
@@ -18,12 +21,13 @@ import json
 import logging
 import base64
 import io
+import random
 from PIL import Image
 import numpy as np
 import cv2
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +44,160 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            
+            # Send login notification email
+            try:
+                send_mail(
+                    subject='Login Notification - Face Detection System',
+                    message=f'Hello {user.username},\n\nYou have successfully logged in to the Face Detection System.\n\nLogin Time: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}\n\nIf this wasn\'t you, please contact the administrator immediately.\n\nBest regards,\nFace Detection System',
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send login notification: {e}")
+            
             messages.success(request, f'Welcome back, {user.username}!')
             return redirect('dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
     
     return render(request, 'faces/login.html')
+
+def signup_view(request):
+    """User signup view with OTP verification"""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'send_otp':
+            # Step 1: Send OTP to email
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            password = request.POST.get('password')
+            
+            # Validate inputs
+            if not username or not email or not password:
+                return JsonResponse({'success': False, 'message': 'All fields are required.'})
+            
+            # Check if username exists
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({'success': False, 'message': 'Username already exists.'})
+            
+            # Check if email exists
+            if User.objects.filter(email=email).exists():
+                return JsonResponse({'success': False, 'message': 'Email already registered.'})
+            
+            # Generate 6-digit OTP
+            otp = str(random.randint(100000, 999999))
+            
+            # Store OTP and user data in session
+            request.session['signup_otp'] = otp
+            request.session['signup_username'] = username
+            request.session['signup_email'] = email
+            request.session['signup_password'] = password
+            request.session['otp_created_at'] = timezone.now().isoformat()
+            
+            # Send OTP email
+            try:
+                send_mail(
+                    subject='Verify Your Email - Face Detection System',
+                    message=f'Hello {username},\n\nYour verification code is: {otp}\n\nThis code will expire in 10 minutes.\n\nIf you didn\'t request this, please ignore this email.\n\nBest regards,\nFace Detection System',
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+                return JsonResponse({'success': True, 'message': 'OTP sent to your email.'})
+            except Exception as e:
+                logger.error(f"Failed to send OTP email: {e}")
+                return JsonResponse({'success': False, 'message': 'Failed to send OTP. Please try again.'})
+        
+        elif action == 'verify_otp':
+            # Step 2: Verify OTP and create user
+            otp_entered = request.POST.get('otp')
+            
+            # Get data from session
+            stored_otp = request.session.get('signup_otp')
+            username = request.session.get('signup_username')
+            email = request.session.get('signup_email')
+            password = request.session.get('signup_password')
+            otp_created_at = request.session.get('otp_created_at')
+            
+            if not all([stored_otp, username, email, password, otp_created_at]):
+                messages.error(request, 'Session expired. Please start again.')
+                return redirect('signup')
+            
+            # Check OTP expiration (10 minutes)
+            otp_time = datetime.fromisoformat(otp_created_at)
+            if timezone.now() - otp_time > timedelta(minutes=10):
+                messages.error(request, 'OTP expired. Please request a new one.')
+                return redirect('signup')
+            
+            # Verify OTP
+            if otp_entered == stored_otp:
+                # Create user
+                try:
+                    user = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        password=password
+                    )
+                    
+                    # Clear session data
+                    del request.session['signup_otp']
+                    del request.session['signup_username']
+                    del request.session['signup_email']
+                    del request.session['signup_password']
+                    del request.session['otp_created_at']
+                    
+                    # Send welcome email
+                    try:
+                        send_mail(
+                            subject='Welcome to Face Detection System',
+                            message=f'Hello {username},\n\nWelcome to the Face Detection System!\n\nYour account has been successfully created.\n\nYou can now log in and start using the system.\n\nBest regards,\nFace Detection System',
+                            from_email=settings.EMAIL_HOST_USER,
+                            recipient_list=[email],
+                            fail_silently=True,
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send welcome email: {e}")
+                    
+                    messages.success(request, 'Account created successfully! Please log in.')
+                    return redirect('login')
+                    
+                except Exception as e:
+                    logger.error(f"Error creating user: {e}")
+                    messages.error(request, 'Error creating account. Please try again.')
+                    return redirect('signup')
+            else:
+                messages.error(request, 'Invalid OTP. Please try again.')
+                return redirect('signup')
+    
+    return render(request, 'faces/signup.html')
+
+@csrf_exempt
+def check_username_availability(request):
+    """Check if username is available"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username', '').strip()
+            
+            if not username:
+                return JsonResponse({'available': False, 'message': 'Username is required.'})
+            
+            if len(username) < 3:
+                return JsonResponse({'available': False, 'message': 'Username must be at least 3 characters.'})
+            
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({'available': False, 'message': 'Username already taken.'})
+            
+            return JsonResponse({'available': True, 'message': 'Username is available!'})
+            
+        except Exception as e:
+            logger.error(f"Error checking username: {e}")
+            return JsonResponse({'available': False, 'message': 'Error checking username.'})
+    
+    return JsonResponse({'available': False, 'message': 'Invalid request method.'})
 
 def logout_view(request):
     """User logout view"""
