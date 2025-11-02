@@ -646,6 +646,8 @@ class CameraStreamer:
         self.is_active = False
         self.known_faces = {}
         self.recognition_threshold = 0.6
+        self.unknown_face_tracker = {}  # Track unknown faces by location
+        self.unknown_face_cooldown = {}  # Cooldown to avoid duplicate saves
         
     def initialize(self):
         """Initialize camera and load faces"""
@@ -685,6 +687,9 @@ class CameraStreamer:
             # Process frame for face detection
             detections = self.process_frame(frame)
             
+            # Track unknown faces
+            self.track_unknown_faces(detections, frame)
+            
             # Draw detections
             frame = self.draw_detections(frame, detections)
             
@@ -695,6 +700,118 @@ class CameraStreamer:
         except Exception as e:
             logger.error(f"Error getting frame: {e}")
             return None
+    
+    def track_unknown_faces(self, detections, frame):
+        """Track unknown faces and save if seen for at least 1 second"""
+        current_time = time.time()
+        current_unknown_locations = []
+        
+        for detection in detections:
+            if not detection['is_recognized']:
+                location = detection['face_location']
+                location_key = f"{location[0]}_{location[1]}_{location[2]}_{location[3]}"
+                current_unknown_locations.append(location_key)
+                
+                # Check if this location is already being tracked
+                if location_key not in self.unknown_face_tracker:
+                    # Start tracking this unknown face
+                    self.unknown_face_tracker[location_key] = {
+                        'first_seen': current_time,
+                        'last_seen': current_time,
+                        'face_location': location,
+                        'saved': False
+                    }
+                else:
+                    # Update last seen time
+                    self.unknown_face_tracker[location_key]['last_seen'] = current_time
+                    tracker = self.unknown_face_tracker[location_key]
+                    
+                    # Check if face has been visible for at least 1 second and not yet saved
+                    duration = current_time - tracker['first_seen']
+                    if duration >= 1.0 and not tracker['saved']:
+                        # Check cooldown to avoid duplicate saves
+                        cooldown_key = f"{location[0]//10}_{location[1]//10}"  # Group similar locations
+                        if cooldown_key not in self.unknown_face_cooldown or \
+                           (current_time - self.unknown_face_cooldown[cooldown_key]) > 5.0:
+                            # Save the unknown face
+                            self.save_unknown_face(frame, location, duration)
+                            tracker['saved'] = True
+                            self.unknown_face_cooldown[cooldown_key] = current_time
+        
+        # Clean up old tracking data (faces that disappeared)
+        keys_to_remove = []
+        for key in list(self.unknown_face_tracker.keys()):
+            if key not in current_unknown_locations:
+                # Face disappeared, check if it was visible long enough but not saved
+                tracker = self.unknown_face_tracker[key]
+                duration = tracker['last_seen'] - tracker['first_seen']
+                if duration >= 1.0 and not tracker['saved']:
+                    # Face was there for 1+ seconds, save it before removing
+                    top, right, bottom, left = tracker['face_location']
+                    if top >= 0 and left >= 0 and bottom <= frame.shape[0] and right <= frame.shape[1]:
+                        self.save_unknown_face(frame, tracker['face_location'], duration)
+                
+                keys_to_remove.append(key)
+        
+        # Remove disappeared faces from tracker
+        for key in keys_to_remove:
+            del self.unknown_face_tracker[key]
+    
+    def save_unknown_face(self, frame, face_location, duration):
+        """Save unknown face to database"""
+        try:
+            top, right, bottom, left = face_location
+            
+            # Extract face region with some padding
+            padding = 20
+            top = max(0, top - padding)
+            left = max(0, left - padding)
+            bottom = min(frame.shape[0], bottom + padding)
+            right = min(frame.shape[1], right + padding)
+            
+            face_image = frame[top:bottom, left:right]
+            
+            # Convert BGR to RGB
+            face_image_rgb = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
+            
+            # Convert to PIL Image
+            from PIL import Image
+            pil_image = Image.fromarray(face_image_rgb)
+            
+            # Save to BytesIO
+            img_io = io.BytesIO()
+            pil_image.save(img_io, format='JPEG', quality=90)
+            img_io.seek(0)
+            
+            # Create detection log
+            detection_log = DetectionLog(
+                person=None,
+                detection_type='unknown',
+                confidence_score=0.0,
+                notes=f'Detected for {duration:.1f} seconds',
+                email_sent=False
+            )
+            
+            # Save image
+            from django.core.files.base import ContentFile
+            timestamp = timezone.now().strftime("%Y%m%d_%H%M%S_%f")
+            image_file = ContentFile(img_io.getvalue(), name=f'unknown_{timestamp}.jpg')
+            detection_log.image_snapshot = image_file
+            detection_log.save()
+            
+            logger.info(f"Saved unknown face (duration: {duration:.1f}s) - ID: {detection_log.id}")
+            
+            # Send email alert if enabled
+            if SystemSettings.get_setting('email_alerts', 'True') == 'True':
+                try:
+                    send_alert_email(detection_log)
+                    detection_log.email_sent = True
+                    detection_log.save()
+                except Exception as e:
+                    logger.error(f"Error sending email alert: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error saving unknown face: {e}")
     
     def process_frame(self, frame):
         """Process frame for face detection and recognition"""
@@ -887,3 +1004,36 @@ def camera_status(request):
         'known_faces_count': known_faces_count,
         'timestamp': datetime.now().isoformat()
     })
+
+@login_required
+def get_unknown_faces(request):
+    """Get recently detected unknown faces"""
+    try:
+        # Get unknown faces from the last 5 minutes
+        time_threshold = timezone.now() - timedelta(minutes=5)
+        unknown_faces = DetectionLog.objects.filter(
+            detection_type='unknown',
+            detection_time__gte=time_threshold
+        ).order_by('-detection_time')[:20]
+        
+        faces_data = []
+        for face in unknown_faces:
+            faces_data.append({
+                'id': face.id,
+                'image_url': face.image_snapshot.url if face.image_snapshot else '',
+                'time': face.detection_time.strftime('%H:%M:%S'),
+                'confidence': f"{face.confidence_score:.2f}" if face.confidence_score else None,
+                'email_sent': face.email_sent,
+                'duration': face.notes if 'second' in face.notes else None
+            })
+        
+        return JsonResponse({
+            'status': 'success',
+            'unknown_faces': faces_data
+        })
+    except Exception as e:
+        logger.error(f"Error getting unknown faces: {e}")
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

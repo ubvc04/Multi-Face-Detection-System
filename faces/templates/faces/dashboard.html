@@ -25,7 +25,7 @@
 
 <!-- Live Camera Feed -->
 <div class="row mb-4">
-    <div class="col-lg-8">
+    <div class="col-lg-6">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
@@ -68,7 +68,31 @@
         </div>
     </div>
     
-    <div class="col-lg-4">
+    <!-- Unknown Faces Section -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Unknown Faces Detected
+                </h5>
+                <span id="unknownCount" class="badge bg-white text-danger">0</span>
+            </div>
+            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                <div id="unknownFacesList">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-shield-check display-4 d-block mb-2"></i>
+                        <p>No unknown faces detected</p>
+                        <small>Unknown faces will appear here automatically when detected</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-12">
         <!-- Statistics Cards -->
         <div class="row">
             <div class="col-12 mb-3">
@@ -254,10 +278,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const knownFacesCount = document.getElementById('knownFacesCount');
     const thresholdValue = document.getElementById('thresholdValue');
     const fpsCounter = document.getElementById('fpsCounter');
+    const unknownFacesList = document.getElementById('unknownFacesList');
+    const unknownCount = document.getElementById('unknownCount');
     
     let isStreaming = false;
     let frameCount = 0;
     let lastFpsUpdate = Date.now();
+    let unknownFacesPolling = null;
+    let displayedUnknownIds = new Set();
     
     // Function to update camera status
     function updateCameraStatus(status, isActive) {
@@ -291,6 +319,102 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
     
+    // Function to fetch and display unknown faces
+    function fetchUnknownFaces() {
+        fetch('{% url "get_unknown_faces" %}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.unknown_faces.length > 0) {
+                updateUnknownFacesList(data.unknown_faces);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching unknown faces:', error);
+        });
+    }
+    
+    // Function to update unknown faces list
+    function updateUnknownFacesList(unknownFaces) {
+        let hasNewFaces = false;
+        
+        unknownFaces.forEach(face => {
+            if (!displayedUnknownIds.has(face.id)) {
+                hasNewFaces = true;
+                displayedUnknownIds.add(face.id);
+                
+                // Create face card
+                const faceCard = document.createElement('div');
+                faceCard.className = 'unknown-face-card mb-3 fade-in';
+                faceCard.innerHTML = `
+                    <div class="card border-danger">
+                        <div class="row g-0">
+                            <div class="col-md-4">
+                                <img src="${face.image_url}" class="img-fluid rounded-start" alt="Unknown Face" 
+                                     style="height: 150px; object-fit: cover; width: 100%;">
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card-body">
+                                    <h6 class="card-title text-danger">
+                                        <i class="bi bi-exclamation-circle-fill"></i>
+                                        Unknown Person
+                                    </h6>
+                                    <p class="card-text mb-1">
+                                        <small><strong>Detected:</strong> ${face.time}</small>
+                                    </p>
+                                    <p class="card-text mb-1">
+                                        <small><strong>Duration:</strong> ${face.duration || 'N/A'}</small>
+                                    </p>
+                                    ${face.confidence ? `<p class="card-text mb-1">
+                                        <small><strong>Confidence:</strong> ${face.confidence}</small>
+                                    </p>` : ''}
+                                    ${face.email_sent ? 
+                                        '<span class="badge bg-success"><i class="bi bi-envelope-check"></i> Alert Sent</span>' : 
+                                        '<span class="badge bg-warning"><i class="bi bi-envelope"></i> Alert Pending</span>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Clear placeholder if this is the first face
+                if (displayedUnknownIds.size === 1) {
+                    unknownFacesList.innerHTML = '';
+                }
+                
+                // Add to the top of the list
+                unknownFacesList.insertBefore(faceCard, unknownFacesList.firstChild);
+                
+                // Trigger animation
+                setTimeout(() => faceCard.style.opacity = '1', 10);
+            }
+        });
+        
+        // Update counter
+        unknownCount.textContent = displayedUnknownIds.size;
+        
+        // Show notification for new faces
+        if (hasNewFaces) {
+            showAlert('New unknown face detected!', 'warning');
+            // Play sound notification (optional)
+            playNotificationSound();
+        }
+    }
+    
+    // Function to play notification sound
+    function playNotificationSound() {
+        try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZRQ0PVqzn77RjGQU+ltryxnkq');
+            audio.volume = 0.3;
+            audio.play().catch(e => console.log('Audio play failed:', e));
+        } catch (e) {
+            console.log('Audio not supported');
+        }
+    }
+    
     // Start camera
     startBtn.addEventListener('click', function() {
         startBtn.disabled = true;
@@ -314,10 +438,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 detectionInfo.style.display = 'block';
                 stopBtn.disabled = false;
                 updateCameraStatus('Active', true);
-                showAlert('Camera started successfully!', 'success');
+                showAlert('Camera started successfully! Auto-capturing unknown faces...', 'success');
                 
                 // Start FPS counter
                 startFpsCounter();
+                
+                // Start polling for unknown faces
+                startUnknownFacesPolling();
             } else {
                 startBtn.disabled = false;
                 updateCameraStatus('Error', false);
@@ -354,6 +481,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 startBtn.disabled = false;
                 updateCameraStatus('Stopped', false);
                 showAlert('Camera stopped successfully!', 'info');
+                
+                // Stop polling
+                stopUnknownFacesPolling();
             } else {
                 stopBtn.disabled = false;
                 showAlert('Failed to stop camera: ' + data.message, 'warning');
@@ -364,6 +494,23 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('Network error: ' + error.message, 'danger');
         });
     });
+    
+    // Start polling for unknown faces
+    function startUnknownFacesPolling() {
+        // Fetch immediately
+        fetchUnknownFaces();
+        
+        // Then poll every 2 seconds
+        unknownFacesPolling = setInterval(fetchUnknownFaces, 2000);
+    }
+    
+    // Stop polling
+    function stopUnknownFacesPolling() {
+        if (unknownFacesPolling) {
+            clearInterval(unknownFacesPolling);
+            unknownFacesPolling = null;
+        }
+    }
     
     // Reload faces
     reloadBtn.addEventListener('click', function() {
@@ -436,13 +583,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 2000);
         }
     });
-    
-    // Auto-start camera on page load (optional)
-    // Uncomment the next line if you want camera to start automatically
-    // startBtn.click();
 });
 
-// Add CSS animation for spinning icon
+// Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
     .spin {
@@ -451,6 +594,27 @@ style.textContent = `
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
+    }
+    .fade-in {
+        animation: fadeInUp 0.5s ease-out;
+        opacity: 0;
+    }
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .unknown-face-card {
+        transition: all 0.3s ease;
+    }
+    .unknown-face-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
 `;
 document.head.appendChild(style);

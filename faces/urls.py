@@ -31,6 +31,7 @@ urlpatterns = [
     path('camera/feed/', views.camera_feed, name='camera_feed'),
     path('camera/control/', views.camera_control, name='camera_control'),
     path('camera/status/', views.camera_status, name='camera_status'),
+    path('camera/unknown-faces/', views.get_unknown_faces, name='get_unknown_faces'),
     
     # API endpoint for detection script
     path('api/detection/', views.detection_api, name='detection_api'),
