@@ -100,14 +100,20 @@ def compare_faces(known_encodings, unknown_encoding, tolerance=0.6):
         logger.error(f"Error comparing faces: {str(e)}")
         return False, -1, 0.0
 
-def send_alert_email(detection_log):
+def send_alert_email(detection_log, recipient_email=None):
     """
     Send email alert for unknown face detection
+    Sends from host email (settings.EMAIL_HOST_USER) to recipient_email
     """
     try:
         # Check if email is configured
         if not settings.EMAIL_HOST_USER:
             logger.warning("Email not configured, skipping alert")
+            return False
+        
+        # If no recipient email provided, skip sending
+        if not recipient_email:
+            logger.warning("No recipient email provided, skipping alert")
             return False
         
         subject = f"Security Alert: Unknown Face Detected"
@@ -133,12 +139,12 @@ Notes: {detection_log.notes or 'None'}
 This is an automated alert from the Face Detection Security System.
         """
         
-        # Create email
+        # Create email - Send FROM host email TO user email
         email = EmailMessage(
             subject=subject,
             body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[settings.EMAIL_HOST_USER],  # Send to the same email for now
+            from_email=settings.EMAIL_HOST_USER,  # From: baveshchowdary1@gmail.com
+            to=[recipient_email],  # To: logged-in user's email
         )
         
         # Attach image if available

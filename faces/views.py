@@ -624,7 +624,8 @@ def detection_api(request):
             # Send email alert for unknown faces
             if detection_type == 'unknown' and SystemSettings.get_setting('email_alerts', 'True') == 'True':
                 try:
-                    send_alert_email(detection_log)
+                    # Note: API endpoint doesn't have user context, so no email will be sent
+                    send_alert_email(detection_log, None)
                     detection_log.email_sent = True
                     detection_log.save()
                 except Exception as e:
@@ -640,7 +641,7 @@ def detection_api(request):
 
 class CameraStreamer:
     """Camera streaming class for HTTP video feed"""
-    def __init__(self, camera_index=0):
+    def __init__(self, camera_index=0, user_email=None):
         self.camera_index = camera_index
         self.camera = None
         self.is_active = False
@@ -648,6 +649,7 @@ class CameraStreamer:
         self.recognition_threshold = 0.6
         self.unknown_face_tracker = {}  # Track unknown faces by location
         self.unknown_face_cooldown = {}  # Cooldown to avoid duplicate saves
+        self.user_email = user_email  # Email of logged-in user for alerts
         
     def initialize(self):
         """Initialize camera and load faces"""
@@ -804,7 +806,7 @@ class CameraStreamer:
             # Send email alert if enabled
             if SystemSettings.get_setting('email_alerts', 'True') == 'True':
                 try:
-                    send_alert_email(detection_log)
+                    send_alert_email(detection_log, self.user_email)
                     detection_log.email_sent = True
                     detection_log.save()
                 except Exception as e:
@@ -954,7 +956,10 @@ def camera_control(request):
             if action == 'start':
                 with camera_lock:
                     if camera_instance is None:
-                        camera_instance = CameraStreamer(camera_index=data.get('camera_index', 0))
+                        camera_instance = CameraStreamer(
+                            camera_index=data.get('camera_index', 0),
+                            user_email=request.user.email
+                        )
                         if camera_instance.initialize():
                             return JsonResponse({'status': 'success', 'message': 'Camera started'})
                         else:
